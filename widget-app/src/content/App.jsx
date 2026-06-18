@@ -1,12 +1,11 @@
 import { useState } from "react";
-import "./App.css";
 
 function App() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
     {
       role: "bot",
-      text: "Hi! How can I help?"
+      text: "Hi! How can I help you with this page?"
     }
   ]);
   const [inputValue, setInputValue] = useState("");
@@ -14,44 +13,37 @@ function App() {
 
   async function sendMessage() {
     const text = inputValue.trim();
-
     if (!text || isLoading) return;
 
-    const userMessage = {
-      role: "user",
-      text
+    // Grab the current page's URL and title to give the AI context
+    const pageContext = {
+      url: window.location.href,
+      title: document.title,
+      // Optionally send a snippet of the visible page text
+      pageText: document.body.innerText.slice(0, 3000)
     };
 
-    setMessages((currentMessages) => [...currentMessages, userMessage]);
+    setMessages((prev) => [...prev, { role: "user", text }]);
     setInputValue("");
     setIsLoading(true);
 
     try {
-      const response = await fetch("http://localhost:3000/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          message: text
-        })
+      // Send message to background service worker instead of calling fetch directly.
+      // Content scripts have CORS restrictions; the background worker does not.
+      const response = await chrome.runtime.sendMessage({
+        type: "CHAT_MESSAGE",
+        payload: { message: text, pageContext }
       });
 
-      const data = await response.json();
+      if (response.error) {
+        throw new Error(response.error);
+      }
 
-      const botMessage = {
-        role: "bot",
-        text: data.answer
-      };
-
-      setMessages((currentMessages) => [...currentMessages, botMessage]);
+      setMessages((prev) => [...prev, { role: "bot", text: response.answer }]);
     } catch (error) {
-      setMessages((currentMessages) => [
-        ...currentMessages,
-        {
-          role: "bot",
-          text: "Browser request error"
-        }
+      setMessages((prev) => [
+        ...prev,
+        { role: "bot", text: "Something went wrong. Please try again." }
       ]);
     } finally {
       setIsLoading(false);
@@ -59,13 +51,16 @@ function App() {
   }
 
   function handleKeyDown(event) {
-    if (event.key === "Enter") {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
       sendMessage();
     }
   }
 
   return (
-    <>
+    // pointer-events: all re-enables interaction inside the widget
+    // (the container is pointer-events: none to not block the page)
+    <div style={{ pointerEvents: "all" }}>
       {isOpen && (
         <div className="chat-widget">
           <div className="chat-header">
@@ -73,7 +68,6 @@ function App() {
               <div className="chat-title">AI Assistant</div>
               <div className="chat-status">Online</div>
             </div>
-
             <button className="chat-close" onClick={() => setIsOpen(false)}>
               ×
             </button>
@@ -92,18 +86,21 @@ function App() {
                 {message.text}
               </div>
             ))}
-
-            {isLoading && <div className="message message-bot">Typing...</div>}
+            {isLoading && (
+              <div className="message message-bot typing-indicator">
+                <span /><span /><span />
+              </div>
+            )}
           </div>
 
           <div className="chat-input-row">
             <input
               value={inputValue}
-              onChange={(event) => setInputValue(event.target.value)}
+              onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="insert your message..."
+              placeholder="Ask about this page..."
+              autoFocus
             />
-
             <button onClick={sendMessage} disabled={isLoading}>
               Send
             </button>
@@ -114,7 +111,7 @@ function App() {
       <button className="chat-toggle" onClick={() => setIsOpen(!isOpen)}>
         {isOpen ? "×" : "💬"}
       </button>
-    </>
+    </div>
   );
 }
 
