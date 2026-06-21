@@ -10,6 +10,7 @@
 const SERVER_URL = "http://localhost:3000/chat";
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  console.log("Service worker received:", message); // # logging workload sent to server
   if (message.type === "CHAT_MESSAGE") {
     handleChatMessage(message.payload)
       .then(sendResponse)
