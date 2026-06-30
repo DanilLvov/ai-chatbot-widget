@@ -5,15 +5,53 @@ import Anthropic from "@anthropic-ai/sdk";
 
 dotenv.config();
 
+const DEBUG = process.env.DEBUG === "true";
+
 const app = express();
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+// Only instantiate Anthropic client when not in debug mode
+const anthropic = DEBUG ? null : new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 app.use(cors());
 app.use(express.json());
 
 app.get("/", (req, res) => {
-  res.json({ message: "Chat API is running" });
+  res.json({ message: "Chat API is running", mode: DEBUG ? "debug" : "live" });
 });
+
+// ---------------------------------------------------------------------------
+// Debug helpers
+// ---------------------------------------------------------------------------
+
+/** Echoes back what the server received so you can inspect context plumbing. */
+function buildDebugAnswer(message, context) {
+  const lines = [
+    `[DEBUG MODE — no API call made]`,
+    ``,
+    `📨 Message received: "${message}"`,
+  ];
+
+  if (context) {
+    const { url, title, pageText } = context;
+    lines.push(``, `🌐 Page context:`);
+    lines.push(`  URL   : ${url ?? "—"}`);
+    lines.push(`  Title : ${title ?? "—"}`);
+    if (pageText) {
+      const preview = pageText.slice(0, 200).replace(/\n+/g, " ").trim();
+      lines.push(`  Text  : ${preview}${pageText.length > 200 ? " …" : ""}`);
+    } else {
+      lines.push(`  Text  : (none sent)`);
+    }
+  } else {
+    lines.push(``, `⚠️  No page context received.`);
+  }
+
+  lines.push(``, `✅ Server is wired up correctly. Set DEBUG=false to go live.`);
+  return lines.join("\n");
+}
+
+// ---------------------------------------------------------------------------
+// Chat endpoint
+// ---------------------------------------------------------------------------
 
 app.post("/chat", async (req, res) => {
   const { message, context } = req.body;
@@ -22,6 +60,13 @@ app.post("/chat", async (req, res) => {
     return res.status(400).json({ error: "message is required" });
   }
 
+  // --- Debug mode: skip the API, return a diagnostic echo ---
+  if (DEBUG) {
+    console.log("[debug] /chat hit — returning mock response");
+    return res.json({ answer: buildDebugAnswer(message, context) });
+  }
+
+  // --- Live mode ---
   let systemPrompt = "You are a helpful assistant embedded in a Chrome extension. Answer the user's questions concisely.";
 
   if (context) {
@@ -51,5 +96,6 @@ app.post("/chat", async (req, res) => {
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  const modeLabel = DEBUG ? "DEBUG (no API calls)" : "LIVE";
+  console.log(`Server running on http://localhost:${PORT}  [${modeLabel}]`);
 });
