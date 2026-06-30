@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+
 
 function App() {
   const [isOpen, setIsOpen] = useState(false);
@@ -10,6 +11,12 @@ function App() {
   ]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
 
   async function sendMessage() {
     const text = inputValue.trim();
@@ -91,6 +98,7 @@ function App() {
                 <span /><span /><span />
               </div>
             )}
+            <div ref={messagesEndRef} />
           </div>
 
           <div className="chat-input-row">

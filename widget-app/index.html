@@ -24,13 +24,15 @@
         font-size: 13px;
         color: #666;
         line-height: 1.5;
+        margin-bottom: 14px;
       }
 
       .status {
         display: flex;
         align-items: center;
         gap: 6px;
-        margin-top: 12px;
+        margin-top: 4px;
+        margin-bottom: 16px;
         font-size: 13px;
         color: #444;
       }
@@ -41,15 +43,106 @@
         border-radius: 50%;
         background: #22c55e;
         flex-shrink: 0;
+        transition: background 0.2s;
+      }
+
+      .dot.disabled {
+        background: #d1d5db;
+      }
+
+      /* Toggle row */
+      .row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 10px;
+      }
+
+      .row-label {
+        font-size: 13px;
+        color: #444;
+      }
+
+      /* Toggle switch */
+      .toggle {
+        position: relative;
+        width: 38px;
+        height: 22px;
+        flex-shrink: 0;
+      }
+
+      .toggle input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      .slider {
+        position: absolute;
+        inset: 0;
+        background: #d1d5db;
+        border-radius: 22px;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+
+      .slider::before {
+        content: "";
+        position: absolute;
+        width: 16px;
+        height: 16px;
+        left: 3px;
+        top: 3px;
+        background: #fff;
+        border-radius: 50%;
+        transition: transform 0.2s;
+      }
+
+      .toggle input:checked + .slider {
+        background: #6c63ff;
+      }
+
+      .toggle input:checked + .slider::before {
+        transform: translateX(16px);
+      }
+
+      /* Reload button */
+      .btn-reload {
+        width: 100%;
+        padding: 7px 0;
+        background: #f3f4f6;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        font-size: 13px;
+        color: #444;
+        cursor: pointer;
+        transition: background 0.15s;
+      }
+
+      .btn-reload:hover {
+        background: #e9eaec;
       }
     </style>
   </head>
   <body>
     <h2>AI Chat Assistant</h2>
-    <p>The chat widget is active on this page. Click the 💬 button in the bottom-right corner to start chatting.</p>
+    <p>Click the 💬 button in the bottom-right corner to start chatting.</p>
+
     <div class="status">
-      <div class="dot"></div>
-      Extension active
+      <div class="dot" id="dot"></div>
+      <span id="status-text">Extension active</span>
     </div>
+
+    <div class="row">
+      <span class="row-label">Enable widget</span>
+      <label class="toggle">
+        <input type="checkbox" id="enable-toggle" checked />
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <button class="btn-reload" id="reload-btn">↺ Reload extension</button>
+
+    <script src="popup.js"></script>
   </body>
 </html>
