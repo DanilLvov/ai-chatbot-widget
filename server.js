@@ -54,20 +54,22 @@ function buildDebugAnswer(message, context) {
 // ---------------------------------------------------------------------------
 
 app.post("/chat", async (req, res) => {
-  const { message, context } = req.body;
+  const { message, context, recentHistory = [], summary = "" } = req.body;
 
   if (!message) {
     return res.status(400).json({ error: "message is required" });
   }
 
-  // --- Debug mode: skip the API, return a diagnostic echo ---
   if (DEBUG) {
     console.log("[debug] /chat hit — returning mock response");
     return res.json({ answer: buildDebugAnswer(message, context) });
   }
 
-  // --- Live mode ---
   let systemPrompt = "You are a helpful assistant embedded in a Chrome extension. Answer the user's questions concisely.";
+
+  if (summary) {
+    systemPrompt += `\n\nSummary of the conversation so far:\n${summary}`;
+  }
 
   if (context) {
     const { url, title, pageText } = context;
@@ -77,12 +79,21 @@ app.post("/chat", async (req, res) => {
     }
   }
 
+  // Build multi-turn messages array from recent history + new message
+  const messages = [
+    ...recentHistory.map((m) => ({
+      role: m.role === "user" ? "user" : "assistant",
+      content: m.text,
+    })),
+    { role: "user", content: message },
+  ];
+
   try {
     const response = await anthropic.messages.create({
       model: "claude-haiku-4-5-20251001",
       max_tokens: 1024,
       system: systemPrompt,
-      messages: [{ role: "user", content: message }],
+      messages,
     });
 
     const answer = response.content[0]?.text ?? "";
@@ -90,6 +101,44 @@ app.post("/chat", async (req, res) => {
   } catch (err) {
     console.error("Anthropic API error:", err);
     res.status(502).json({ error: "Failed to get response from AI" });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Summarize endpoint
+// ---------------------------------------------------------------------------
+
+app.post("/summarize", async (req, res) => {
+  const { messages } = req.body;
+
+  if (!messages?.length) {
+    return res.status(400).json({ error: "messages is required" });
+  }
+
+  if (DEBUG) {
+    return res.json({ summary: "[DEBUG] Summary would be generated here." });
+  }
+
+  const transcript = messages
+    .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.text}`)
+    .join("\n");
+
+  try {
+    const response = await anthropic.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 256,
+      messages: [
+        {
+          role: "user",
+          content: `Summarize the following conversation in 2-3 sentences, preserving key facts and decisions:\n\n${transcript}`,
+        },
+      ],
+    });
+
+    res.json({ summary: response.content[0]?.text ?? "" });
+  } catch (err) {
+    console.error("Summarize error:", err);
+    res.status(502).json({ error: "Failed to summarize" });
   }
 });
 

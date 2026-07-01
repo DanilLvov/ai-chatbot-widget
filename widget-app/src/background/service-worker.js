@@ -23,7 +23,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
-async function handleChatMessage({ message, pageContext }) {
+async function handleChatMessage({ message, pageContext, recentHistory = [], summary = "" }) {
   const response = await fetch(SERVER_URL, {
     method: "POST",
     headers: {
@@ -31,12 +31,13 @@ async function handleChatMessage({ message, pageContext }) {
     },
     body: JSON.stringify({
       message,
-      // Pass page context so the server/AI can reference the current page
       context: {
         url: pageContext.url,
         title: pageContext.title,
         pageText: pageContext.pageText
-      }
+      },
+      recentHistory,
+      summary,
     })
   });
 
