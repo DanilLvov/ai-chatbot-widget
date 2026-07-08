@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 const INITIAL_MESSAGE = { role: "bot", text: "Hi! How can I help you with this page?" };
 const RECENT_WINDOW = 6;
 const SUMMARIZE_THRESHOLD = 10;
-const SERVER = "http://localhost:3000";
 
 function App() {
   const [isOpen, setIsOpen] = useState(false);
@@ -28,7 +29,7 @@ function App() {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isLoading]);
+  }, [inputValue]);
 
   async function maybeCompress(currentMessages) {
     if (currentMessages.length <= SUMMARIZE_THRESHOLD) {
@@ -39,13 +40,12 @@ function App() {
     const toKeep = currentMessages.slice(-RECENT_WINDOW);
 
     try {
-      const res = await fetch(`${SERVER}/summarize`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: toSummarize }),
+      const response = await chrome.runtime.sendMessage({
+        type: "SUMMARIZE",
+        payload: { messages: toSummarize },
       });
-      const data = await res.json();
-      const newSummary = [summary, data.summary].filter(Boolean).join(" ");
+      if (response.error) throw new Error(response.error);
+      const newSummary = [summary, response.summary].filter(Boolean).join(" ");
       setSummary(newSummary);
       return { messages: toKeep, activeSummary: newSummary };
     } catch {
@@ -125,7 +125,11 @@ function App() {
                 key={index}
                 className={message.role === "user" ? "message message-user" : "message message-bot"}
               >
-                {message.text}
+                {message.role === "bot" ? (
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.text}</ReactMarkdown>
+                ) : (
+                  message.text
+                )}
               </div>
             ))}
             {isLoading && (
