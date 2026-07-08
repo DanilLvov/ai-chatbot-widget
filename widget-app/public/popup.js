@@ -15,6 +15,7 @@ chrome.storage.local.get("widgetEnabled", ({ widgetEnabled }) => {
 
 toggle.addEventListener("change", () => {
   const enabled = toggle.checked;
+  applyState(enabled);
   chrome.storage.local.set({ widgetEnabled: enabled });
 
   chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
@@ -23,7 +24,7 @@ toggle.addEventListener("change", () => {
   });
 });
 
-// reload button starts extensions again and reinjects widget
+// reloads the current tab so the content script re-injects the widget
 document.getElementById("reload-btn").addEventListener("click", () => {
   chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
     chrome.tabs.reload(tab.id);

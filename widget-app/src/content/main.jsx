@@ -43,13 +43,4 @@ if (!document.getElementById("ai-chat-extension-root")) {
       }
     }
   });
-
-  chrome.storage.local.get("widgetEnabled", ({ widgetEnabled }) => {
-    injectWidget();
-    // Apply initial state after injection
-    const root = document.getElementById("ai-chat-extension-root");
-    if (root) {
-      root.style.display = widgetEnabled !== false ? "block" : "none";
-    }
-  });
 }

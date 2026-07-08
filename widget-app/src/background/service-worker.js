@@ -7,7 +7,7 @@
  * Replace SERVER_URL with your actual backend URL when deploying.
  */
 
-const SERVER_URL = "http://localhost:3000/chat";
+const SERVER_URL = "http://localhost:3000";
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log("Service worker received:", message); // # logging workload sent to server
@@ -21,10 +21,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // Return true to keep the message channel open for async response
     return true;
   }
+
+  if (message.type === "SUMMARIZE") {
+    handleSummarize(message.payload)
+      .then(sendResponse)
+      .catch((error) =>
+        sendResponse({ error: error.message || "Unknown error" })
+      );
+
+    return true;
+  }
 });
 
 async function handleChatMessage({ message, pageContext, recentHistory = [], summary = "" }) {
-  const response = await fetch(SERVER_URL, {
+  const response = await fetch(`${SERVER_URL}/chat`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -47,4 +57,21 @@ async function handleChatMessage({ message, pageContext, recentHistory = [], sum
 
   const data = await response.json();
   return { answer: data.answer };
+}
+
+async function handleSummarize({ messages }) {
+  const response = await fetch(`${SERVER_URL}/summarize`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ messages })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Server error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return { summary: data.summary };
 }
